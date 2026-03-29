@@ -2,10 +2,9 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
 import { Repository } from 'typeorm';
-import { CreateUserDto } from './dto/create-user.dto';
 import * as bcrypt from 'bcrypt'
-import { UpdateUserDto } from './dto/update-user.dto';
-import { throwError } from 'rxjs';
+import { CreateUserRequest, UpdateUserRequest } from './dto/request';
+import { UserResponse } from './dto/response';
 
 @Injectable()
 export class UsersService {
@@ -14,54 +13,55 @@ export class UsersService {
         private usersRepository: Repository<User>
     ) {}
 
-    async craete(createUserDto: CreateUserDto){
-        const {phone, password, ...rest} = createUserDto
+    async create(CreateUserRequest: CreateUserRequest){
+        const createUser = CreateUserRequest.toUser();
 
         const existPhone = await this.usersRepository.findOne({
-            where: {phone}
+            where: {phone: createUser.phone}
         });
         if (existPhone){
-            throw new BadRequestException(`Ya hay un usuario registrado con el numero "${phone}"`)
+            throw new BadRequestException(`Ya hay un usuario registrado con el numero "${createUser.phone}"`)
         }
 
-        const hashPassword = await bcrypt.hash(password, 12)
+        const hashPassword = await bcrypt.hash(createUser.password, 12)
 
         const newUser = this.usersRepository.create({
-            phone,
+            ...createUser,
             password: hashPassword,
-            ...rest
         })
 
-        await this.usersRepository.save(newUser);
+        const savedUser = await this.usersRepository.save(newUser);
 
-        //variable con el mismo nombre mas arriba ojo con eso
-        const{password:_ , ...userData} = newUser
-
-        return userData;
+        return UserResponse.FromUserToResponse(savedUser);
     }
 
-    findAll(){
-        return this.usersRepository.find();
+    async findAll(){
+        const users = await this.usersRepository.find();
+        return UserResponse.FromUserListToResponse(users)
     }
 
-    async findOne(id: string): Promise<User>{
+    async findOne(id: string){
         const user = await this.usersRepository.findOneBy({id});
         if(!user){
             throw new NotFoundException(`El user con ID ${id} no se encontro`)
         }
-        return user
+        return UserResponse.FromUserToResponse(user)
     }
 
-    async update(id: string, updateUserDto: UpdateUserDto){
+    async update(id: string, updateUserDto: UpdateUserRequest){
         const user = await this.findOne(id)
-        const {password, phone, ...rest} = updateUserDto
+        
+        if(!user){
+            throw new NotFoundException(`El user con ID ${id} no se encontro`)
+        }
 
-        Object.assign(user, rest);
+        Object.assign(user, updateUserDto);
+        const updateUser = await this.usersRepository.save(user)
 
-        return this.usersRepository.save(user);
+        return UserResponse.FromUserToResponse(updateUser)
     }
 
-    async remove(id: string): Promise<{ message: string }>{
+    async remove(id: string){
         const result = await this.usersRepository.delete(id);
 
         if(result.affected === 0){

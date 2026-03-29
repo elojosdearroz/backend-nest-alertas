@@ -1,8 +1,9 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, PartialType } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsNumberString, IsPhoneNumber, IsString, Length, Matches, MaxLength, MinLength } from "class-validator";
+import { IsNumberString, IsOptional, IsString, Length, Matches, MaxLength, MinLength } from "class-validator";
+import { User } from '../entities/user.entity';
 
-export class CreateUserDto{
+export class CreateUserRequest{
     @ApiProperty()
     @IsString({message: 'El nombre de usuario debe ser una cadena de texto.'})
     @Transform(({ value }) => value.trim().toLowerCase())
@@ -25,4 +26,27 @@ export class CreateUserDto{
     @MaxLength(20, {message: 'La contraseña no debe exceder los 20 caracteres'})
     @Matches(/^\S+$/, {message: 'La contraseña no debe contener espacios',})
     password: string
+
+    toUser(): User{
+        const user = new User();
+        user.first_name = this.first_name;
+        user.last_name = this.last_name;
+        user.phone = this.phone;
+        user.password = this.password;
+        return user
+    }
+}
+
+export class UpdateUserRequest{
+    @ApiProperty({ required: false })
+    @IsOptional()
+    @IsString()
+    @Transform(({ value }) => value?.trim().toLowerCase())
+    first_name?: string;
+
+    @ApiProperty({ required: false })
+    @IsOptional()
+    @IsString()
+    @Transform(({ value }) => value?.trim().toLowerCase())
+    last_name?: string;
 }
