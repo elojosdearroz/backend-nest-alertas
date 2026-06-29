@@ -24,9 +24,9 @@ import { createClient } from 'redis';
         {
             provide: 'REDIS_CLIENT',
             useFactory: async (configService: ConfigService) => {
-                const host = configService.get<string>('redis.host') || 'localhost';
-                const port = configService.get<number>('redis.port') || 6379;
-                const client = createClient({ url: `redis://${host}:${port}` });
+                const redisUrl = configService.get<string>('redis.url') ||
+                    `redis://${configService.get<string>('redis.host') || 'localhost'}:${configService.get<number>('redis.port') || 6379}`;
+                const client = createClient({ url: redisUrl });
 
                 client.on('error', (err) => {
                     console.error('Error en REDIS_CLIENT:', err);
